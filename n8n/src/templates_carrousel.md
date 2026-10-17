@@ -1,7 +1,8 @@
 # Bibliothèque de templates carrousel EJP Tech
 
-Charte commune à tous les templates : format 1080 × 1350 (portrait Instagram), fond bleu profond, texte Montserrat blanc,
-**un seul mot ou chiffre en orange par slide** (l'« accent »), logo EJP Tech en bas à droite, numéro de slide en bas à gauche.
+Charte commune (dessinée automatiquement) : format 1080 × 1350, police Montserrat, couverture bleu nuit, slides de contenu
+crème avec en-tête « profil » EJP Tech et compteur, slide 7 orange, **un seul mot ou chiffre surligné en orange par slide**
+(l'« accent »), un emoji par slide, barre de progression.
 Chaque template a toujours 7 slides : slide 1 = couverture qui arrête le scroll, slide 7 = action + CTA d'engagement.
 Une 8e slide « Abonne-toi » (fixe, aux couleurs EJP Tech) est ajoutée automatiquement au moment de dessiner les visuels.
 
