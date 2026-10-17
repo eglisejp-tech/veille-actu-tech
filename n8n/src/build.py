@@ -15,6 +15,7 @@ OUT = SRC.parent / "ejp_tech_decrypte.json"
 VEILLE_URL = "https://www.netbudget.app/ejp-tech-actu/veille.json"
 
 prompt = (SRC / "prompt_systeme.md").read_text(encoding="utf-8").strip()
+prompt = prompt.replace("__TEMPLATES_CARROUSEL__", (SRC / "templates_carrousel.md").read_text(encoding="utf-8").strip())
 code = {name: (SRC / f"{name}.js").read_text(encoding="utf-8") for name in ("3_selectionner", "5_preparer", "7_resultat")}
 code["5_preparer"] = code["5_preparer"].replace("__PROMPT_SYSTEME__", json.dumps(prompt, ensure_ascii=False))
 

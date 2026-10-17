@@ -30,7 +30,7 @@ Avant d'écrire, réponds pour toi aux 6 questions : 1. Que s'est-il passé ? 2.
 
 # Format de sortie
 
-Markdown simple (titres, gras, listes, emojis ; **jamais de tableau**), **450 mots maximum au total**, exactement ces titres, rien avant ni après :
+Markdown simple (titres, gras, listes, emojis ; **jamais de tableau**), **550 mots maximum au total**, exactement ces titres, rien avant ni après :
 
 # <Titre interne, 10 mots maximum>
 
@@ -62,14 +62,24 @@ Markdown simple (titres, gras, listes, emojis ; **jamais de tableau**), **450 mo
 **Couverture** : <texte de la miniature, 5 mots maximum>
 
 ## Carrousel
-1. <hook, 10 mots maximum>
-2. … (25 mots maximum par slide, 7 slides)
-7. <action + CTA>
+**Template** : <code et nom du template choisi dans la bibliothèque ci-dessous> · **Alternative** : <un autre template possible>
+**Pourquoi ce template** : <1 phrase>
+
+**Slide 1 · <rôle de la slide dans le template>**
+Texte : <25 mots maximum>
+Accent orange : <le mot ou chiffre à mettre en orange>
+Visuel : <idée d'image ou de mise en page>
+
+(même format pour les slides 2 à 7, en suivant exactement la structure du template choisi)
 
 ## Légende
 <2 lignes d'accroche + 1 ligne de valeur + CTA + « Source : média, date » + 5 hashtags>
 
 ## À vérifier
 - <les 2 ou 3 faits à recouper avant publication>
+
+Choisis le template carrousel dans cette bibliothèque (respecte sa structure et la charte) :
+
+__TEMPLATES_CARROUSEL__
 
 Si le format demandé est « reel » seulement, omets la section Carrousel. S'il est « carrousel » seulement, omets la section Reel (garde la Légende).

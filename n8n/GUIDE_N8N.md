@@ -149,6 +149,10 @@ car le dépôt GitHub est privé. L'ancienne adresse `eglisejp-tech.github.io/ve
 
 - **Le ton, le canevas, les formats** : `src/prompt_systeme.md`. Il contient aussi les chiffres du rapport du stand
   (audience, outils, freins, formats préférés), que Claude prend en compte à chaque décryptage.
+- **Les templates de carrousel** : `src/templates_carrousel.md`. 6 modèles de 7 slides (Alerte décryptée, Tuto pas à pas,
+  Vrai ou faux, Chiffre choc, Avant / Après, Le match), avec la charte commune. Claude choisit le plus adapté, propose une
+  alternative et remplit chaque slide (texte, mot en orange, visuel). Pour ajouter un modèle, copie un bloc « ## T… »
+  et adapte-le.
 - **Le choix automatique** : `src/3_selectionner.js`. Les critères viennent du rapport du stand : outils utilisés
   (ChatGPT, Claude, Gemini, Canva…), freins (données personnelles 29 %, confiance 23 %), usages (études 61 %, rédaction,
   visuels), emploi et argent. Les sujets trop techniques ou business sont pénalisés.
