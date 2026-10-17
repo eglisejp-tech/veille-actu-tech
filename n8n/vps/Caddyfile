@@ -1,0 +1,5 @@
+# Certificat HTTPS obtenu et renouvelé automatiquement par Caddy (Let's Encrypt).
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy n8n:5678
+}

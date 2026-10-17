@@ -1,0 +1,49 @@
+# n8n EJP Tech sur VPS : n8n + Caddy (HTTPS automatique).
+# Les données (workflows, credentials, mémoire, historique) vivent dans le volume « n8n_data »
+# et survivent aux redémarrages, mises à jour et suppressions de conteneur.
+name: n8n
+
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    environment:
+      - N8N_HOST=${DOMAIN}
+      - N8N_PROTOCOL=https
+      - N8N_PORT=5678
+      - WEBHOOK_URL=https://${DOMAIN}/
+      - N8N_PROXY_HOPS=1
+      - GENERIC_TIMEZONE=Europe/Paris
+      - TZ=Europe/Paris
+      - N8N_RUNNERS_ENABLED=true
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      # Historique des exécutions : gardé 14 jours pour ne pas remplir le disque.
+      - EXECUTIONS_DATA_PRUNE=true
+      - EXECUTIONS_DATA_MAX_AGE=336
+    volumes:
+      - n8n_data:/home/node/.n8n
+    # Pas exposé sur Internet : seulement Caddy (et un tunnel SSH en secours) y accèdent.
+    ports:
+      - "127.0.0.1:5678:5678"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      - DOMAIN=${DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - n8n
+
+volumes:
+  n8n_data:
+    name: n8n_data
+  caddy_data:
+  caddy_config:
