@@ -2,7 +2,8 @@
 
 Charte commune à tous les templates : format 1080 × 1350 (portrait Instagram), fond bleu profond, texte Montserrat blanc,
 **un seul mot ou chiffre en orange par slide** (l'« accent »), logo EJP Tech en bas à droite, numéro de slide en bas à gauche.
-Chaque template a toujours 7 slides : slide 1 = couverture qui arrête le scroll, slide 7 = action + CTA.
+Chaque template a toujours 7 slides : slide 1 = couverture qui arrête le scroll, slide 7 = action + CTA d'engagement.
+Une 8e slide « Abonne-toi » (fixe, aux couleurs EJP Tech) est ajoutée automatiquement au moment de dessiner les visuels.
 
 ## T1 · Alerte décryptée
 Quand l'utiliser : une actu qui touche la vie privée, la sécurité, une arnaque, un risque concret (frein n°1 du public).

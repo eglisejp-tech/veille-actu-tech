@@ -85,10 +85,12 @@ Markdown simple (titres, gras, listes, emojis ; **jamais de tableau**), **550 mo
 
 **Slide 1 · <rôle de la slide dans le template>**
 Texte : <25 mots maximum>
-Accent orange : <le mot ou chiffre à mettre en orange>
-Visuel : <idée d'image ou de mise en page>
+Accent orange : <le mot ou chiffre à surligner, présent tel quel dans le texte>
+Emoji : <1 emoji qui illustre la slide>
+Visuel : <idée d'image si on retouche dans Canva>
 
-(même format pour les slides 2 à 7, en suivant exactement la structure du template choisi)
+(même format pour les slides 2 à 7, en suivant exactement la structure du template choisi. Une 8e slide « Abonne-toi » est ajoutée automatiquement : la slide 7 donne l'action et un CTA d'engagement — enregistre, partage ou commente — mais ne dit pas « abonne-toi ».)
+Sur chaque slide, une phrase-titre courte d'abord, puis éventuellement une phrase d'explication : le visuel affiche la première phrase en gros et la suite en plus petit.
 
 ## Légende
 <2 lignes d'accroche + 1 ligne de valeur + CTA + « Source : média, date » + 5 hashtags>

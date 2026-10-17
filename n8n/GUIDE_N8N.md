@@ -142,8 +142,9 @@ messages validés par Meta. Le plus simple, dans l'ordre :
 
 ## 7 bis. Générer les visuels du carrousel (gratuit, 10 min une seule fois)
 
-Après la création de la tâche ClickUp, n8n dessine les 7 slides du carrousel aux couleurs EJP Tech
-(1080 × 1350, prêtes à poster sur Instagram), plus un **PDF modifiable dans Canva gratuit**, et les joint à la tâche.
+Après la création de la tâche ClickUp, n8n dessine les 7 slides du carrousel + une slide finale « Abonne-toi » aux couleurs
+EJP Tech (1080 × 1350, prêtes à poster sur Instagram), plus un **PDF modifiable dans Canva gratuit**, et les joint à la tâche.
+Aperçu : [exemples/apercu-carrousel.png](exemples/apercu-carrousel.png).
 Le rendu est fait par **Gotenberg**, un moteur gratuit installé sur le VPS à côté de n8n.
 
 **a. Ajouter Gotenberg sur le VPS** (sur ton Mac, puis sur le VPS) :
@@ -166,7 +167,8 @@ Relie ton nœud **ClickUp** au nœud **8. Preparer les slides** (glisse le petit
 
 **Modifier le visuel dans Canva** (compte gratuit) : télécharge le PDF depuis ClickUp, puis dans Canva,
 **Créer un design > Importer un fichier** > le PDF. Chaque slide devient une page modifiable (textes, couleurs, images).
-Pour la charte (couleurs, police, logo), le style est défini en haut de `src/8_slides.js` (bloc CSS).
+Pour la marque (nom, compte Instagram affiché, phrase de la slide « Abonne-toi », couleurs), modifie les « Réglages de marque »
+en haut de `src/8_slides.js`, ou directement en haut du nœud **8. Preparer les slides** dans n8n.
 
 **Mettre à jour la consigne de Claude sans réimporter** (par exemple après une amélioration des scripts de Reel) :
 ```bash
