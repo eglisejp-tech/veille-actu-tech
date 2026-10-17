@@ -74,7 +74,7 @@ Sur ton Mac :
 ```bash
 scp -r ~/Documents/perso/eglise/ejp-tech/veille-actu-tech/n8n/vps root@213.136.88.29:/opt/n8n
 ```
-Fichiers envoyés : `docker-compose.yml` (n8n + Caddy pour le HTTPS), `Caddyfile`, `.env.example` (l'adresse),
+Fichiers envoyés : `docker-compose.yml` (n8n, Gotenberg pour dessiner les carrousels, Caddy pour le HTTPS), `Caddyfile`, `.env.example` (l'adresse),
 `install.sh` et `backup.sh`.
 
 ## Étape 5 — Installer (5 min, automatique)

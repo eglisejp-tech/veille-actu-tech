@@ -16,7 +16,7 @@ VEILLE_URL = "https://www.netbudget.app/ejp-tech-actu/veille.json"
 
 prompt = (SRC / "prompt_systeme.md").read_text(encoding="utf-8").strip()
 prompt = prompt.replace("__TEMPLATES_CARROUSEL__", (SRC / "templates_carrousel.md").read_text(encoding="utf-8").strip())
-code = {name: (SRC / f"{name}.js").read_text(encoding="utf-8") for name in ("3_selectionner", "5_preparer", "7_resultat")}
+code = {name: (SRC / f"{name}.js").read_text(encoding="utf-8") for name in ("3_selectionner", "5_preparer", "7_resultat", "8_slides", "10_nommer")}
 code["5_preparer"] = code["5_preparer"].replace("__PROMPT_SYSTEME__", json.dumps(prompt, ensure_ascii=False))
 
 
@@ -90,3 +90,46 @@ workflow = {
 }
 OUT.write_text(json.dumps(workflow, ensure_ascii=False, indent=2), encoding="utf-8")
 print(f"Écrit : {OUT}")
+
+# Code complet du nœud 5 (prompt inclus), pour une mise à jour par copier-coller sans réimporter le workflow.
+(SRC.parent / "code_noeud_5.js").write_text(code["5_preparer"], encoding="utf-8")
+
+# Nœuds « visuels du carrousel », à coller dans n8n après le nœud ClickUp (Cmd + V sur le canevas).
+GOTENBERG = "http://gotenberg:3000/forms/chromium/"
+visuels = [
+    {**node("8. Preparer les slides", "n8n-nodes-base.code", 2, 1980, {"jsCode": code["8_slides"]}), "id": "ejp-v8"},
+    {**node("9. Generer les images", "n8n-nodes-base.httpRequest", 4.2, 2200, {
+        "method": "POST",
+        "url": "={{ '" + GOTENBERG + "' + $json.route }}",
+        "sendBody": True,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {"parameters": [
+            {"parameterType": "formBinaryData", "name": "files", "inputDataFieldName": "index"},
+            {"name": "width", "value": "1080"},
+            {"name": "height", "value": "1350"},
+            {"name": "format", "value": "png"},
+            {"name": "skipNetworkIdleEvent", "value": "false"},
+            {"name": "preferCssPageSize", "value": "true"},
+            {"name": "printBackground", "value": "true"},
+        ]},
+        "options": {"response": {"response": {"responseFormat": "file", "outputPropertyName": "fichier"}}, "timeout": 120000},
+    }), "id": "ejp-v9"},
+    {**node("10. Nommer les fichiers", "n8n-nodes-base.code", 2, 2420, {"jsCode": code["10_nommer"]}), "id": "ejp-v10"},
+    {**node("11. Joindre a la tache ClickUp", "n8n-nodes-base.httpRequest", 4.2, 2640, {
+        "method": "POST",
+        "url": "=https://api.clickup.com/api/v2/task/{{ $json.tache_id }}/attachment",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "clickUpApi",
+        "sendBody": True,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {"parameters": [
+            {"parameterType": "formBinaryData", "name": "attachment", "inputDataFieldName": "fichier"},
+        ]},
+        "options": {"timeout": 60000},
+    }), "id": "ejp-v11"},
+]
+noms = [n["name"] for n in visuels]
+liens = {a: {"main": [[{"node": b, "type": "main", "index": 0}]]} for a, b in zip(noms, noms[1:])}
+SNIPPET = SRC.parent / "ajout_visuels_carrousel.json"
+SNIPPET.write_text(json.dumps({"nodes": visuels, "connections": liens}, ensure_ascii=False, indent=2), encoding="utf-8")
+print(f"Écrit : {SNIPPET}")

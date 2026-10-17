@@ -8,7 +8,8 @@ Le résultat est une *proposition* : un humain valide toujours avant publication
 ```
 Lancer (manuel) ─────────────┐
 Tous les 2 jours à 10h (auto) ┴→ 1. Choisir l'article → 2. Lire la veille → 3. Sélectionner l'article
-       → 4. Lire la page de l'article → 5. Préparer la demande → 6. Claude → 7. Résultat → (8. ClickUp)
+       → 4. Lire la page de l'article → 5. Préparer la demande → 6. Claude → 7. Résultat → ClickUp
+       → 8. Préparer les slides → 9. Générer les images → 10. Nommer → 11. Joindre à la tâche ClickUp
 ```
 
 Exemple de résultat : [exemples/2026-10-08_meta-muse.md](exemples/2026-10-08_meta-muse.md)
@@ -138,6 +139,40 @@ messages validés par Meta. Le plus simple, dans l'ordre :
 2. **Telegram** : nœud *Telegram > Send Message*, avec un bot créé en 2 minutes via @BotFather, gratuit et sans validation.
    Message conseillé : titre + lien de la tâche ClickUp, pas le décryptage complet.
 3. **WhatsApp** : nœud *WhatsApp Business Cloud*, seulement si l'équipe y tient vraiment.
+
+## 7 bis. Générer les visuels du carrousel (gratuit, 10 min une seule fois)
+
+Après la création de la tâche ClickUp, n8n dessine les 7 slides du carrousel aux couleurs EJP Tech
+(1080 × 1350, prêtes à poster sur Instagram), plus un **PDF modifiable dans Canva gratuit**, et les joint à la tâche.
+Le rendu est fait par **Gotenberg**, un moteur gratuit installé sur le VPS à côté de n8n.
+
+**a. Ajouter Gotenberg sur le VPS** (sur ton Mac, puis sur le VPS) :
+```bash
+scp ~/Documents/perso/eglise/ejp-tech/veille-actu-tech/n8n/vps/docker-compose.yml root@213.136.88.29:/opt/n8n/
+ssh root@213.136.88.29 "cd /opt/n8n && docker compose up -d"
+```
+
+**b. Coller les 4 nouveaux nœuds dans n8n.** Sur ton Mac :
+```bash
+pbcopy < ~/Documents/perso/eglise/ejp-tech/veille-actu-tech/n8n/ajout_visuels_carrousel.json
+```
+Ouvre le workflow, clique sur une zone vide du canevas, puis **Cmd + V**. Les nœuds 8 à 11 apparaissent.
+Relie ton nœud **ClickUp** au nœud **8. Preparer les slides** (glisse le petit rond de droite du nœud ClickUp).
+
+**c. Credential ClickUp du nœud 11** : double-clique sur **11. Joindre a la tache ClickUp**, puis *Credential for ClickUp API*
+> ta credential ClickUp existante.
+
+**d.** **Save**, **Execute workflow**, vérifie la tâche ClickUp (7 PNG + 1 PDF en pièces jointes), puis **Publish**.
+
+**Modifier le visuel dans Canva** (compte gratuit) : télécharge le PDF depuis ClickUp, puis dans Canva,
+**Créer un design > Importer un fichier** > le PDF. Chaque slide devient une page modifiable (textes, couleurs, images).
+Pour la charte (couleurs, police, logo), le style est défini en haut de `src/8_slides.js` (bloc CSS).
+
+**Mettre à jour la consigne de Claude sans réimporter** (par exemple après une amélioration des scripts de Reel) :
+```bash
+pbcopy < ~/Documents/perso/eglise/ejp-tech/veille-actu-tech/n8n/code_noeud_5.js
+```
+puis nœud **5. Preparer la demande** > clique dans le code > **Cmd + A** > **Cmd + V** > **Save** > **Publish**.
 
 ## 8. La page de veille
 

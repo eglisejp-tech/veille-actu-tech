@@ -1,0 +1,153 @@
+{
+  "nodes": [
+    {
+      "id": "ejp-v8",
+      "name": "8. Preparer les slides",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Transforme la section « Carrousel » en 7 images 1080 × 1350 (charte EJP Tech) + 1 PDF modifiable dans Canva.\n// Entrée : la tâche ClickUp créée juste avant (on lit son id). Sortie : 8 éléments, chacun avec un fichier index.html\n// que « 9. Generer les images » envoie à Gotenberg (le moteur de rendu installé sur le VPS).\nconst res = $('7. Resultat').first().json;\nconst tacheId = $input.first().json.id;\nif (!tacheId) throw new Error(\"Pas d'identifiant de tâche ClickUp : ce nœud doit être branché juste après le nœud ClickUp.\");\n\nconst texte = res.carrousel || '';\nconst template = ((texte.match(/\\*\\*Template\\*\\*\\s*:\\s*(.+?)\\s*(·\\s*\\*\\*Alternative|\\n)/) || [])[1] || '').trim();\n\n// Découpe « **Slide N · rôle** » puis les lignes « Texte : », « Accent orange : ».\nconst slides = [];\nfor (const bloc of texte.split(/\\*\\*Slide\\s+/i).slice(1)) {\n  const [entete, ...lignes] = bloc.split('\\n');\n  const role = (entete.split('·')[1] || '').replace(/\\*+/g, '').trim();\n  const champ = (nom) => {\n    const l = lignes.find((x) => x.toLowerCase().replace(/\\*/g, '').trim().startsWith(nom));\n    return l ? l.replace(/\\*/g, '').slice(l.replace(/\\*/g, '').indexOf(':') + 1).trim() : '';\n  };\n  slides.push({ role, texte: champ('texte'), accent: champ('accent') });\n}\nif (!slides.length) return []; // format « reel » seul : pas de carrousel à dessiner\n\nconst echap = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nfunction surligner(phrase, accent) {\n  const p = echap(phrase);\n  if (!accent) return p;\n  const i = p.toLowerCase().indexOf(echap(accent).toLowerCase());\n  const html = i < 0 ? p : `${p.slice(0, i)}<em>${p.slice(i, i + accent.length)}</em>${p.slice(i + accent.length)}`;\n  // Listes « 1. … 2. … » et « À éviter : » sur des lignes séparées.\n  return html.replace(/\\s+(\\d)\\.\\s/g, '<br>$1. ').replace(/\\s+(À éviter\\s*:)/g, '<br>$1');\n}\n\nconst CSS = `\n@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=block');\n@page { size: 1080px 1350px; margin: 0; }\n* { box-sizing: border-box; margin: 0; padding: 0; }\nhtml, body { width: 1080px; background: #0B1D47; }\n.slide { width: 1080px; height: 1350px; position: relative; overflow: hidden; color: #fff;\n  font-family: 'Montserrat', sans-serif; background: radial-gradient(120% 80% at 85% 0%, #1B3A8A 0%, #0B1D47 55%, #081536 100%);\n  padding: 120px 96px; display: flex; flex-direction: column; justify-content: center; page-break-after: always; }\n.slide::after { content: ''; position: absolute; right: -140px; bottom: -140px; width: 420px; height: 420px;\n  border: 46px solid rgba(255, 122, 26, .16); border-radius: 50%; }\n.role { position: absolute; top: 96px; left: 96px; font-size: 30px; font-weight: 700; letter-spacing: 4px;\n  text-transform: uppercase; color: #FF7A1A; }\n.texte { font-size: 64px; line-height: 1.22; font-weight: 700; max-width: 880px; }\n.couverture .texte { font-size: 92px; font-weight: 800; line-height: 1.1; }\n.fin .texte { font-size: 70px; }\nem { font-style: normal; color: #FF7A1A; }\n.bas { position: absolute; left: 96px; right: 96px; bottom: 80px; display: flex; justify-content: space-between;\n  align-items: center; font-size: 28px; font-weight: 700; color: rgba(255, 255, 255, .75); z-index: 1; }\n.marque b { color: #FF7A1A; }\n.points { display: flex; gap: 12px; }\n.points i { width: 14px; height: 14px; border-radius: 50%; background: rgba(255, 255, 255, .3); }\n.points i.on { background: #FF7A1A; }\n.swipe { position: absolute; right: 96px; top: 96px; font-size: 28px; font-weight: 700; color: rgba(255, 255, 255, .75); }\n`;\n\nconst total = slides.length;\nfunction slideHtml(s, i) {\n  const classe = i === 0 ? 'couverture' : i === total - 1 ? 'fin' : '';\n  const points = slides.map((_, j) => `<i class=\"${j === i ? 'on' : ''}\"></i>`).join('');\n  return `<section class=\"slide ${classe}\">\n  <div class=\"role\">${echap(i === 0 ? 'EJP Tech Décrypte' : s.role)}</div>\n  ${i === 0 ? '<div class=\"swipe\">Swipe →</div>' : ''}\n  <div class=\"texte\">${surligner(s.texte, s.accent)}</div>\n  <div class=\"bas\"><span class=\"points\">${points}</span><span class=\"marque\">EJP <b>Tech</b></span></div>\n</section>`;\n}\nconst page = (corps) => `<!doctype html><html lang=\"fr\"><head><meta charset=\"utf-8\"><style>${CSS}</style></head><body>${corps}</body></html>`;\nconst fichier = (html) => ({ data: Buffer.from(html, 'utf8').toString('base64'), mimeType: 'text/html', fileName: 'index.html' });\n\nconst base = (res.titre || 'carrousel').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);\nconst sorties = slides.map((s, i) => ({\n  json: { tache_id: tacheId, route: 'screenshot/html', nom: `${base}-slide-${i + 1}.png`, template },\n  binary: { index: fichier(page(slideHtml(s, i))) },\n}));\nsorties.push({\n  json: { tache_id: tacheId, route: 'convert/html', nom: `${base}-carrousel-canva.pdf`, template },\n  binary: { index: fichier(page(slides.map(slideHtml).join(''))) },\n});\nreturn sorties;\n"
+      }
+    },
+    {
+      "id": "ejp-v9",
+      "name": "9. Generer les images",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2200,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://gotenberg:3000/forms/chromium/' + $json.route }}",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "files",
+              "inputDataFieldName": "index"
+            },
+            {
+              "name": "width",
+              "value": "1080"
+            },
+            {
+              "name": "height",
+              "value": "1350"
+            },
+            {
+              "name": "format",
+              "value": "png"
+            },
+            {
+              "name": "skipNetworkIdleEvent",
+              "value": "false"
+            },
+            {
+              "name": "preferCssPageSize",
+              "value": "true"
+            },
+            {
+              "name": "printBackground",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "fichier"
+            }
+          },
+          "timeout": 120000
+        }
+      }
+    },
+    {
+      "id": "ejp-v10",
+      "name": "10. Nommer les fichiers",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2420,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Donne à chaque image son nom (slide-1.png, …, carrousel-canva.pdf) et garde l'id de la tâche ClickUp.\nreturn $input.all().map((item, i) => {\n  const infos = $('8. Preparer les slides').all()[i].json;\n  item.binary.fichier.fileName = infos.nom;\n  item.binary.fichier.mimeType = infos.nom.endsWith('.pdf') ? 'application/pdf' : 'image/png';\n  item.json = infos;\n  return item;\n});\n"
+      }
+    },
+    {
+      "id": "ejp-v11",
+      "name": "11. Joindre a la tache ClickUp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2640,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.clickup.com/api/v2/task/{{ $json.tache_id }}/attachment",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "clickUpApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "attachment",
+              "inputDataFieldName": "fichier"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "8. Preparer les slides": {
+      "main": [
+        [
+          {
+            "node": "9. Generer les images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "9. Generer les images": {
+      "main": [
+        [
+          {
+            "node": "10. Nommer les fichiers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Nommer les fichiers": {
+      "main": [
+        [
+          {
+            "node": "11. Joindre a la tache ClickUp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

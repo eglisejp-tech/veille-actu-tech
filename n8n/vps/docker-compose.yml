@@ -26,6 +26,12 @@ services:
     ports:
       - "127.0.0.1:5678:5678"
 
+  # Moteur de rendu (Chromium) : transforme les slides HTML en images PNG et en PDF.
+  # Accessible seulement par n8n, sur http://gotenberg:3000 (aucun port ouvert vers l'extérieur).
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    restart: unless-stopped
+
   caddy:
     image: caddy:2
     restart: unless-stopped
