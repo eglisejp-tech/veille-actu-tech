@@ -3,17 +3,6 @@
   "name": "EJP Tech Décrypte - article vers carrousel et script",
   "nodes": [
     {
-      "id": "ejp-0",
-      "name": "Lancer",
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
-      "position": [
-        0,
-        300
-      ],
-      "parameters": {}
-    },
-    {
       "id": "ejp-auto",
       "name": "Tous les 2 jours a 10h",
       "type": "n8n-nodes-base.scheduleTrigger",
@@ -34,6 +23,17 @@
           ]
         }
       }
+    },
+    {
+      "id": "ejp-0",
+      "name": "Lancer",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {}
     },
     {
       "id": "ejp-1",
@@ -77,6 +77,18 @@
               "name": "veille_json_url",
               "value": "https://www.netbudget.app/ejp-tech-actu/veille.json",
               "type": "string"
+            },
+            {
+              "id": "champ-6",
+              "name": "clickup_list_id",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "champ-7",
+              "name": "clickup_statut",
+              "value": "",
+              "type": "string"
             }
           ]
         },
@@ -109,24 +121,50 @@
     },
     {
       "id": "ejp-3",
-      "name": "3. Selectionner l article",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "name": "2b. Lire les decryptages ClickUp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
         660,
         300
       ],
       "parameters": {
-        "jsCode": "// Choisit l'article à décrypter.\n// - Lien d'article collé dans « 1. Choisir l'article » : on le cherche dans la veille.\n// - Vide (ou adresse de la veille) : choix automatique selon les attentes du public (rapport du stand).\nconst choix = $('1. Choisir l article').first().json;\nconst veille = $input.first().json || {};\nconst articles = Array.isArray(veille.articles) ? veille.articles : [];\n\n// Articles déjà décryptés par les lancements automatiques (mémoire du workflow, voir « 7. Resultat »).\nconst memoire = $getWorkflowStaticData('global');\nconst dejaFaits = new Set(memoire.deja_decryptes || []);\n\nconst normaliser = (u) => (u || '').trim().replace(/[?#].*$/, '').replace(/\\/+$/, '').toLowerCase();\nconst lienBrut = normaliser(choix.lien_article);\nconst lien = /ejp-tech-actu$|veille-actu-tech$/.test(lienBrut) ? '' : lienBrut;\n\n// Pondération tirée du rapport du stand (102 réponses, septembre 2026).\n// Plus un sujet touche une part importante du public, plus il pèse.\nconst SIGNAUX = [\n  { nom: 'outil utilisé par le public', points: 4, mots: ['chatgpt', 'openai', 'claude', 'gemini', 'canva', 'copilot', 'meta ai', 'instagram', 'tiktok', 'snapchat', 'whatsapp'] },\n  { nom: 'frein n°1 : données personnelles (29 %)', points: 5, mots: ['données personnelles', 'vie privée', 'confidentialité', 'fuite de données', 'exposés', 'mémoire', 'mot de passe', 'privacy', 'personal data', 'tracking', 'surveillance'] },\n  { nom: 'frein n°2 : confiance dans les réponses (23 %)', points: 4, mots: ['hallucination', 'erreur', 'se trompe', 'fiable', 'fiabilité', 'désinformation', 'deepfake', 'fake', 'vérifier', 'restituent mal'] },\n  { nom: 'usage : études et révisions (61 %)', points: 4, mots: ['étudiant', 'étudiants', 'école', 'université', 'examen', 'partiel', 'bac', 'révision', 'apprendre', 'cours', 'élève'] },\n  { nom: 'usage : rédiger, résumer, s\\'organiser', points: 3, mots: ['rédiger', 'rédaction', 'résumer', 'résumé', 'organiser', 'agenda', 'traduire', 'traduction', 'productivité'] },\n  { nom: 'usage : créer des visuels (60 %)', points: 3, mots: ['image', 'images', 'visuel', 'vidéo générée', 'sora', 'midjourney', 'dessin'] },\n  { nom: 'jeunes actifs : emploi, CV, argent', points: 3, mots: ['emploi', ' cv', 'recrutement', 'stage', 'alternance', 'job', 'salaire', 'arnaque', 'escroquerie', 'payant', 'gratuit', 'prix', 'abonnement'] },\n];\nconst BONUS_THEME = { 'Société / usages': 3, 'Régulation / éthique': 2, 'Modèles & produits IA': 1, 'Cybersécurité': 1 };\n// Trop technique ou trop « business » pour ce public.\nconst MALUS = ['levée de fonds', ' lève ', 'valorisation', 'milliards de dollars', 'datacenter', 'centre de données', ' gpu', 'nvidia', ' api', ' sdk', 'kubernetes', 'serveur', 'b2b', 'cve-', 'zero-day', 'exploit'];\n\nfunction evaluer(a) {\n  const texte = ` ${a.titre} ${a.titre} ${a.resume} `.toLowerCase();\n  let score = BONUS_THEME[a.theme] || 0;\n  const raisons = [];\n  for (const s of SIGNAUX) {\n    if (s.mots.some((m) => texte.includes(m))) { score += s.points; raisons.push(s.nom); }\n  }\n  score -= 3 * MALUS.filter((m) => texte.includes(m)).length;\n  if (a.langue === 'fr') score += 2; // exemples et contexte plus proches du public\n  if (a.pertinence === 'Basse') score -= 4;\n  return { score, raisons };\n}\n\nlet article = null;\nlet mode = '';\nlet raisons = [];\n\nif (lien) {\n  article = articles.find((a) => normaliser(a.lien) === lien) || null;\n  mode = article ? 'lien collé, trouvé dans la veille' : 'lien collé, absent de la veille (on lira la page directement)';\n  if (!article) {\n    article = { titre: '', lien: choix.lien_article.trim(), source: (choix.lien_article.match(/\\/\\/([^/]+)/) || [, ''])[1].replace(/^www\\./, ''), date: '', theme: '', resume: '' };\n  }\n}\n\nconst jours = Number(choix.jours) || 3;\nconst depuis = new Date(Date.now() - jours * 86400000).toISOString().slice(0, 10);\nconst candidats = articles\n  .filter((a) => a.date >= depuis && !dejaFaits.has(normaliser(a.lien)))\n  .map((a) => ({ ...a, ...evaluer(a) }))\n  .sort((x, y) => y.score - x.score)\n  .slice(0, 5);\n\nif (!article) {\n  if (!candidats.length) {\n    throw new Error(\"Aucun article : colle un lien dans « 1. Choisir l'article », ou vérifie que l'URL de la veille est lisible (voir le guide).\");\n  }\n  article = candidats[0];\n  raisons = article.raisons;\n  mode = `choix automatique (meilleur score public EJP sur ${jours} jours)`;\n}\n\nreturn [{\n  json: {\n    article,\n    mode_selection: mode,\n    raison_choix: raisons.join(' · '),\n    autres_candidats: candidats.map((c) => `${c.score} pts | ${c.date} | ${c.source} | ${c.titre} | ${c.lien}`),\n    format: choix.format,\n    consigne: choix.consigne || '',\n  },\n}];\n"
-      }
+        "url": "=https://api.clickup.com/api/v2/list/{{ $('1. Choisir l article').first().json.clickup_list_id }}/task?include_closed=true&subtasks=false&order_by=created",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "clickUpApi",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
     },
     {
       "id": "ejp-4",
+      "name": "3. Selectionner l article",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Choisit l'article à décrypter.\n// - Lien d'article collé dans « 1. Choisir l'article » : on le cherche dans la veille.\n// - Vide (ou adresse de la veille) : choix automatique selon les attentes du public (rapport du stand).\nconst choix = $('1. Choisir l article').first().json;\nconst veille = $('2. Lire la veille').first().json || {};\nconst articles = Array.isArray(veille.articles) ? veille.articles : [];\nconst normaliser = (u) => (u || '').trim().replace(/[?#].*$/, '').replace(/\\/+$/, '').toLowerCase();\n\n// ---- Mémoire : ce qui a déjà été décrypté ----\n// 1) Les tâches de la liste ClickUp (nœud « 2b ») : chaque description commence par le lien de l'article.\n//    Marche aussi pendant les tests manuels, et une tâche rejetée compte aussi.\n// 2) En secours, la mémoire interne de n8n (remplie seulement par les lancements automatiques).\nconst taches = (($input.first().json || {}).tasks) || [];\nconst memoire = $getWorkflowStaticData('global');\nconst dejaFaits = new Set(memoire.deja_decryptes || []);\nfor (const t of taches) {\n  for (const u of `${t.description || ''} ${t.text_content || ''}`.match(/https?:\\/\\/[^\\s)\\]\"'>]+/g) || []) dejaFaits.add(normaliser(u));\n}\n\n// ---- Même sujet ? (évite 4 décryptages d'affilée sur « les pubs ChatGPT ») ----\nconst VIDES = new Set(['dans', 'pour', 'avec', 'sans', 'plus', 'moins', 'leur', 'leurs', 'cette', 'votre', 'notre', 'sont', 'être', 'peut', 'fait', 'comme', 'mais', 'tout', 'tous', 'quand', 'from', 'with', 'that', 'this', 'your', 'have', 'will', 'what', 'utilise', 'désormais', 'nouvelle', 'nouveau']);\nconst racines = (titre) => new Set((titre || '').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n  .split(/[^a-z0-9]+/).filter((m) => m.length >= 4 && !VIDES.has(m)).map((m) => m.slice(0, 5)));\nconst sujetsFaits = articles.filter((a) => dejaFaits.has(normaliser(a.lien))).map((a) => racines(a.titre));\nfor (const t of taches) sujetsFaits.push(racines((t.name || '').replace(/^.*?D[ée]crypte\\s*:\\s*/i, '')));\nfunction memeSujet(a) {\n  const r = racines(a.titre);\n  return sujetsFaits.some((f) => {\n    const communs = [...r].filter((x) => f.has(x)).length;\n    return communs >= 3 || (communs >= 2 && communs / Math.min(r.size, f.size || 1) >= 0.5);\n  });\n}\nconst lienBrut = normaliser(choix.lien_article);\nconst lien = /ejp-tech-actu$|veille-actu-tech$/.test(lienBrut) ? '' : lienBrut;\n\n// Pondération tirée du rapport du stand (102 réponses, septembre 2026).\n// Plus un sujet touche une part importante du public, plus il pèse.\nconst SIGNAUX = [\n  { nom: 'outil utilisé par le public', points: 4, mots: ['chatgpt', 'openai', 'claude', 'gemini', 'canva', 'copilot', 'meta ai', 'instagram', 'tiktok', 'snapchat', 'whatsapp'] },\n  { nom: 'frein n°1 : données personnelles (29 %)', points: 5, mots: ['données personnelles', 'vie privée', 'confidentialité', 'fuite de données', 'exposés', 'mémoire', 'mot de passe', 'privacy', 'personal data', 'tracking', 'surveillance'] },\n  { nom: 'frein n°2 : confiance dans les réponses (23 %)', points: 4, mots: ['hallucination', 'erreur', 'se trompe', 'fiable', 'fiabilité', 'désinformation', 'deepfake', 'fake', 'vérifier', 'restituent mal'] },\n  { nom: 'usage : études et révisions (61 %)', points: 4, mots: ['étudiant', 'étudiants', 'école', 'université', 'examen', 'partiel', 'bac', 'révision', 'apprendre', 'cours', 'élève'] },\n  { nom: 'usage : rédiger, résumer, s\\'organiser', points: 3, mots: ['rédiger', 'rédaction', 'résumer', 'résumé', 'organiser', 'agenda', 'traduire', 'traduction', 'productivité'] },\n  { nom: 'usage : créer des visuels (60 %)', points: 3, mots: ['image', 'images', 'visuel', 'vidéo générée', 'sora', 'midjourney', 'dessin'] },\n  { nom: 'jeunes actifs : emploi, CV, argent', points: 3, mots: ['emploi', ' cv', 'recrutement', 'stage', 'alternance', 'job', 'salaire', 'arnaque', 'escroquerie', 'payant', 'gratuit', 'prix', 'abonnement'] },\n];\nconst BONUS_THEME = { 'Société / usages': 3, 'Régulation / éthique': 2, 'Modèles & produits IA': 1, 'Cybersécurité': 1 };\n// Trop technique ou trop « business » pour ce public.\nconst MALUS = ['levée de fonds', ' lève ', 'valorisation', 'milliards de dollars', 'datacenter', 'centre de données', ' gpu', 'nvidia', ' api', ' sdk', 'kubernetes', 'serveur', 'b2b', 'cve-', 'zero-day', 'exploit'];\n\nfunction evaluer(a) {\n  const texte = ` ${a.titre} ${a.titre} ${a.resume} `.toLowerCase();\n  let score = BONUS_THEME[a.theme] || 0;\n  const raisons = [];\n  for (const s of SIGNAUX) {\n    if (s.mots.some((m) => texte.includes(m))) { score += s.points; raisons.push(s.nom); }\n  }\n  score -= 3 * MALUS.filter((m) => texte.includes(m)).length;\n  if (a.langue === 'fr') score += 2; // exemples et contexte plus proches du public\n  if (a.pertinence === 'Basse') score -= 4;\n  // Fraîcheur : un article du jour passe devant un article d'il y a 3 jours à intérêt égal.\n  const age = Math.round((Date.parse(new Date().toISOString().slice(0, 10)) - Date.parse(a.date)) / 86400000);\n  score += age <= 0 ? 4 : age === 1 ? 2 : 0;\n  return { score, raisons };\n}\n\nlet article = null;\nlet mode = '';\nlet raisons = [];\n\nif (lien) {\n  article = articles.find((a) => normaliser(a.lien) === lien) || null;\n  mode = article ? 'lien collé, trouvé dans la veille' : 'lien collé, absent de la veille (on lira la page directement)';\n  if (!article) {\n    article = { titre: '', lien: choix.lien_article.trim(), source: (choix.lien_article.match(/\\/\\/([^/]+)/) || [, ''])[1].replace(/^www\\./, ''), date: '', theme: '', resume: '' };\n  }\n}\n\nconst jours = Number(choix.jours) || 3;\nconst depuis = new Date(Date.now() - jours * 86400000).toISOString().slice(0, 10);\nconst candidats = articles\n  .filter((a) => a.date >= depuis && !dejaFaits.has(normaliser(a.lien)) && !memeSujet(a))\n  .map((a) => ({ ...a, ...evaluer(a) }))\n  .sort((x, y) => y.score - x.score)\n  .slice(0, 5);\n\nif (!article) {\n  if (!candidats.length) {\n    throw new Error(\"Aucun article : colle un lien dans « 1. Choisir l'article », ou vérifie que l'URL de la veille est lisible (voir le guide).\");\n  }\n  article = candidats[0];\n  raisons = article.raisons;\n  mode = `choix automatique (meilleur score public EJP sur ${jours} jours)`;\n}\n\nreturn [{\n  json: {\n    article,\n    mode_selection: mode,\n    raison_choix: raisons.join(' · '),\n    memoire: `${taches.length} tâche(s) ClickUp lues, ${dejaFaits.size} article(s) déjà traités exclus`,\n    autres_candidats: candidats.map((c) => `${c.score} pts | ${c.date} | ${c.source} | ${c.titre} | ${c.lien}`),\n    format: choix.format,\n    consigne: choix.consigne || '',\n  },\n}];\n"
+      }
+    },
+    {
+      "id": "ejp-5",
       "name": "4. Lire la page de l article",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        880,
+        1100,
         300
       ],
       "parameters": {
@@ -155,12 +193,12 @@
       "alwaysOutputData": true
     },
     {
-      "id": "ejp-5",
+      "id": "ejp-6",
       "name": "5. Preparer la demande",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1100,
+        1320,
         300
       ],
       "parameters": {
@@ -168,12 +206,12 @@
       }
     },
     {
-      "id": "ejp-6",
+      "id": "ejp-7",
       "name": "6. Claude - EJP Tech Decrypte",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1320,
+        1540,
         300
       ],
       "parameters": {
@@ -209,16 +247,152 @@
       }
     },
     {
-      "id": "ejp-7",
+      "id": "ejp-8",
       "name": "7. Resultat",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1540,
+        1760,
         300
       ],
       "parameters": {
         "jsCode": "// Met en forme la réponse de Claude : un texte prêt pour ClickUp, plus chaque partie séparée.\nconst r = $input.first().json || {};\nconst sel = $('3. Selectionner l article').first().json;\nconst prep = $('5. Preparer la demande').first().json;\n\nif (r.error) {\n  const msg = typeof r.error === 'string' ? r.error : (r.error.message || JSON.stringify(r.error));\n  throw new Error(`Appel à Claude refusé : ${msg}. Vérifie la clé API (credential « Anthropic API ») et le crédit du compte.`);\n}\nif (r.stop_reason === 'refusal') {\n  throw new Error(\"Claude a refusé de traiter cet article. Choisis-en un autre ou reformule la consigne.\");\n}\n\nconst texte = (r.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('\\n').trim();\nif (!texte) throw new Error('Réponse vide de Claude. Relance le workflow.');\n\n// Découpe par sections « ## Titre ».\nconst sections = {};\nfor (const bloc of texte.split(/^## /m).slice(1)) {\n  const [entete, ...corps] = bloc.split('\\n');\n  sections[entete.trim().toLowerCase()] = corps.join('\\n').trim();\n}\nconst titre = ((texte.match(/^#\\s+(.+)$/m) || [])[1] || sel.article.titre || 'Décryptage').trim();\n\n// Mémorise l'article pour que les lancements automatiques ne le reprennent pas.\nconst memoire = $getWorkflowStaticData('global');\nconst lienNorm = (sel.article.lien || '').trim().replace(/[?#].*$/, '').replace(/\\/+$/, '').toLowerCase();\nmemoire.deja_decryptes = [...new Set([...(memoire.deja_decryptes || []), lienNorm])].slice(-200);\n\nconst u = r.usage || {};\n// Tarifs Claude Opus 5.5 : 4 $ / million de jetons en entrée, 20 $ / million en sortie.\nconst cout = ((u.input_tokens || 0) * 4 + (u.output_tokens || 0) * 20) / 1e6;\n\nconst coupe = r.stop_reason === 'max_tokens' ? '\\n\\n⚠️ Réponse coupée : relance avec un seul format.' : '';\nconst avertissement = prep.texte_complet ? '' : '⚠️ Article non lisible en entier : rédigé à partir du résumé, tous les faits sont à vérifier.\\n\\n';\n\nreturn [{\n  json: {\n    titre,\n    lien_source: sel.article.lien,\n    // Texte prêt pour la description de la tâche ClickUp (même nom de champ qu'avant).\n    decryptage: `${avertissement}🔗 ${sel.article.lien}\\n\\n${texte.replace(/^#\\s+.+\\n+/, '')}${coupe}`,\n    brief: sections['brief'] || '',\n    reel: sections['reel'] || '',\n    carrousel: sections['carrousel'] || '',\n    legende: sections['légende'] || sections['legende'] || '',\n    a_verifier: sections['à vérifier'] || '',\n    selection: sel.mode_selection,\n    raison_choix: sel.raison_choix,\n    cout_estime: `${cout.toFixed(3)} $`,\n    autres_candidats: sel.autres_candidats,\n  },\n}];\n"
+      }
+    },
+    {
+      "id": "ejp-9",
+      "name": "ClickUp - creer la tache",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1980,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.clickup.com/api/v2/list/{{ $('1. Choisir l article').first().json.clickup_list_id }}/task",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "clickUpApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(Object.assign({ name: '🔎 Décrypte : ' + $json.titre, description: $json.decryptage, markdown_content: $json.decryptage }, $('1. Choisir l article').first().json.clickup_statut ? { status: $('1. Choisir l article').first().json.clickup_statut } : {})) }}",
+        "options": {
+          "timeout": 60000
+        }
+      }
+    },
+    {
+      "id": "ejp-10",
+      "name": "8. Preparer les slides",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Transforme la section « Carrousel » en images 1080 × 1350 (charte EJP Tech) + 1 PDF modifiable dans Canva.\n// Les 7 slides de Claude + 1 slide finale fixe « Abonne-toi ».\n// Entrée : la tâche ClickUp créée juste avant (on lit son id). Sortie : une image par slide + le PDF, chacun sous\n// forme de fichier index.html que « 9. Generer les images » envoie à Gotenberg (le moteur de rendu du VPS).\n\n// ---- Réglages de marque (à adapter) ----\nconst MARQUE = 'EJP Tech';\nconst COMPTE = ''; // ex. '@ejptech' : affiché sous le nom et sur la slide « Abonne-toi ». Vide = non affiché.\nconst SIGNATURE = 'On décrypte la tech qui change ton quotidien.';\nconst COULEURS = { nuit: '#0B1D47', nuit2: '#152C6B', creme: '#FBF6EE', orange: '#FF7A1A', texte: '#0B1D47', gris: '#4A5878' };\n\nconst res = $('7. Resultat').first().json;\nconst tacheId = $input.first().json.id;\nif (!tacheId) throw new Error(\"Pas d'identifiant de tâche ClickUp : ce nœud doit être branché juste après le nœud ClickUp.\");\n\nconst texte = res.carrousel || '';\nconst template = ((texte.match(/\\*\\*Template\\*\\*\\s*:\\s*(.+?)\\s*(·\\s*\\*\\*Alternative|\\n)/) || [])[1] || '').trim();\n\n// Découpe « **Slide N · rôle** » puis les lignes « Texte : », « Accent orange : », « Emoji : », « Visuel : ».\nconst EMOJI_RE = /\\p{Extended_Pictographic}️?/u;\nconst slides = [];\nfor (const bloc of texte.split(/\\*\\*Slide\\s+/i).slice(1)) {\n  const [entete, ...lignes] = bloc.split('\\n');\n  const role = (entete.split('·')[1] || '').replace(/\\*+/g, '').trim();\n  const champ = (nom) => {\n    const l = lignes.map((x) => x.replace(/\\*/g, '').trim()).find((x) => x.toLowerCase().startsWith(nom));\n    return l ? l.slice(l.indexOf(':') + 1).trim() : '';\n  };\n  const emoji = (champ('emoji').match(EMOJI_RE) || champ('visuel').match(EMOJI_RE) || [''])[0];\n  slides.push({ role, texte: champ('texte'), accent: champ('accent'), emoji });\n}\nif (!slides.length) return []; // format « reel » seul : pas de carrousel à dessiner\nconst EMOJIS_SECOURS = ['⚡', '🔍', '👀', '⚠️', '💡', '✅', '🎯'];\nslides.forEach((s, i) => { s.emoji = s.emoji || EMOJIS_SECOURS[i % EMOJIS_SECOURS.length]; });\n\nconst echap = (s) => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nfunction surligner(phrase, accent) {\n  const p = echap(phrase);\n  const a = echap(accent);\n  const i = a ? p.toLowerCase().indexOf(a.toLowerCase()) : -1;\n  return i < 0 ? p : `${p.slice(0, i)}<mark>${p.slice(i, i + a.length)}</mark>${p.slice(i + a.length)}`;\n}\n// Titre = première phrase (ou ce qui précède une liste « 1. »), corps = la suite. Listes en lignes séparées.\nfunction decouper(t) {\n  const liste = t.search(/(^|\\s)1\\.\\s/);\n  if (liste > 0) return [t.slice(0, liste).trim(), t.slice(liste).trim()];\n  if (liste === 0) return ['', t];\n  const m = t.match(/^(.{12,}?[.?!…])\\s+(.+)$/);\n  return m ? [m[1], m[2]] : [t, ''];\n}\nconst enLignes = (html) => html.replace(/\\s+(\\d)\\.\\s/g, '<br>$1. ').replace(/^(\\d)\\.\\s/, '$1. ').replace(/\\s+(À éviter\\s*:)/g, '<br><br>$1');\n\nconst C = COULEURS;\nconst CSS = `\n@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&display=block');\n@page { size: 1080px 1350px; margin: 0; }\n* { box-sizing: border-box; margin: 0; padding: 0; }\nhtml, body { width: 1080px; background: ${C.nuit}; }\n.slide { width: 1080px; height: 1350px; position: relative; overflow: hidden; font-family: 'Montserrat', sans-serif;\n  padding: 0 96px; display: flex; flex-direction: column; page-break-after: always; }\nmark { color: inherit; padding: 0 .08em; margin: 0 -.04em; border-radius: .12em;\n  background: linear-gradient(transparent 52%, rgba(255,122,26,.55) 52%, rgba(255,122,26,.55) 90%, transparent 90%); }\n.couverture mark { background: linear-gradient(transparent 50%, ${C.orange} 50%, ${C.orange} 92%, transparent 92%); }\n\n/* En-tête « profil » commun */\n.profil { display: flex; align-items: center; gap: 22px; padding-top: 84px; }\n.avatar { width: 84px; height: 84px; border-radius: 50%; background: ${C.orange}; color: #fff; font-weight: 900;\n  font-size: 27px; display: flex; align-items: center; justify-content: center; letter-spacing: -1px; }\n.nom { font-weight: 800; font-size: 32px; line-height: 1.1; }\n.compte { font-weight: 500; font-size: 25px; opacity: .65; }\n.compteur { margin-left: auto; font-weight: 800; font-size: 26px; padding: 12px 24px; border-radius: 40px; }\n\n/* Barre de progression en bas */\n.progres { position: absolute; left: 96px; right: 96px; bottom: 72px; height: 10px; border-radius: 10px; }\n.progres i { display: block; height: 100%; border-radius: 10px; background: ${C.orange}; }\n.suite { position: absolute; right: 96px; bottom: 104px; font-weight: 700; font-size: 26px; opacity: .7; }\n\n/* Couverture */\n.couverture { background: radial-gradient(110% 70% at 90% 0%, ${C.nuit2} 0%, ${C.nuit} 60%); color: #fff; }\n.couverture .compteur { background: rgba(255,255,255,.12); }\n.couverture .progres { background: rgba(255,255,255,.15); }\n.couverture .centre { margin: auto 0; }\n.couverture .gros-emoji { font-size: 150px; line-height: 1; margin-bottom: 48px; }\n.couverture .kicker { color: ${C.orange}; font-weight: 800; font-size: 30px; letter-spacing: 5px; text-transform: uppercase; margin-bottom: 30px; }\n.couverture h1 { font-size: 104px; line-height: 1.04; font-weight: 900; letter-spacing: -2px; }\n.couverture .swipe { display: inline-flex; margin-top: 64px; background: #fff; color: ${C.nuit}; font-weight: 800;\n  font-size: 30px; padding: 22px 38px; border-radius: 60px; }\n\n/* Slides de contenu */\n.contenu { background: ${C.creme}; color: ${C.texte}; }\n.contenu .compteur { background: ${C.nuit}; color: #fff; }\n.contenu .progres { background: rgba(11,29,71,.1); }\n.contenu .centre { margin: auto 0; }\n.badge { width: 128px; height: 128px; border-radius: 34px; background: #fff; box-shadow: 0 18px 40px rgba(11,29,71,.12);\n  display: flex; align-items: center; justify-content: center; font-size: 72px; margin-bottom: 44px; }\n.kicker { color: ${C.orange}; font-weight: 800; font-size: 27px; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 26px; }\nh2 { font-size: 70px; line-height: 1.1; font-weight: 900; letter-spacing: -1px; }\n.corps { font-size: 44px; line-height: 1.36; font-weight: 600; color: ${C.gris}; margin-top: 36px; }\n.seul h2 { font-size: 80px; }\n.liste .corps { font-size: 54px; line-height: 1.4; font-weight: 800; color: ${C.texte}; margin-top: 0; }\n.action.liste .corps { color: #fff; }\n\n/* Slide « à toi de jouer » */\n.action { background: ${C.orange}; color: #fff; }\n.action .compteur { background: #fff; color: ${C.orange}; }\n.action .progres { background: rgba(255,255,255,.3); }\n.action .progres i { background: #fff; }\n.action .centre { margin: auto 0; }\n.action .badge { background: rgba(255,255,255,.18); box-shadow: none; }\n.action .kicker { color: ${C.nuit}; }\n.action .corps { color: #fff; opacity: .92; }\n.action mark { background: linear-gradient(transparent 52%, rgba(11,29,71,.35) 52%, rgba(11,29,71,.35) 90%, transparent 90%); }\n.action .avatar { background: ${C.nuit}; }\n\n/* Slide finale « Abonne-toi » */\n.abonne { background: radial-gradient(100% 70% at 50% 0%, ${C.nuit2} 0%, ${C.nuit} 65%); color: #fff; align-items: center; text-align: center; justify-content: center; }\n.abonne .grand-avatar { width: 230px; height: 230px; border-radius: 50%; background: ${C.orange}; color: #fff; font-weight: 900;\n  font-size: 70px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 14px rgba(255,122,26,.25); margin-bottom: 56px; }\n.abonne .pre { color: ${C.orange}; font-weight: 800; font-size: 32px; letter-spacing: 3px; text-transform: uppercase; }\n.abonne h2 { font-size: 124px; margin: 18px 0 28px; letter-spacing: -3px; }\n.abonne .sig { font-size: 40px; font-weight: 600; opacity: .85; max-width: 820px; line-height: 1.35; }\n.abonne .bouton { margin-top: 60px; background: ${C.orange}; font-weight: 800; font-size: 38px; padding: 28px 70px; border-radius: 70px; }\n.abonne .gestes { margin-top: 64px; display: flex; gap: 44px; font-size: 28px; font-weight: 700; opacity: .8; }\n.abonne .compte-final { margin-top: 30px; font-size: 32px; font-weight: 700; opacity: .9; }\n`;\n\nconst total = slides.length + 1;\nconst initiales = MARQUE.split(/\\s+/)[0].slice(0, 3).toUpperCase();\nconst profil = (n) => `<div class=\"profil\"><div class=\"avatar\">${initiales}</div>\n  <div><div class=\"nom\">${echap(MARQUE)}</div><div class=\"compte\">${echap(COMPTE || 'Décrypte')}</div></div>\n  <div class=\"compteur\">${n}/${total}</div></div>`;\nconst progres = (n) => `<div class=\"progres\"><i style=\"width:${Math.round((n / total) * 100)}%\"></i></div>`;\n\nfunction slideHtml(s, i) {\n  const n = i + 1;\n  if (i === 0) {\n    return `<section class=\"slide couverture\">${profil(n)}\n  <div class=\"centre\"><div class=\"gros-emoji\">${s.emoji}</div><div class=\"kicker\">${echap(MARQUE)} Décrypte</div>\n  <h1>${surligner(s.texte, s.accent)}</h1><div class=\"swipe\">Swipe pour comprendre →</div></div>${progres(n)}</section>`;\n  }\n  const classe = i === slides.length - 1 ? 'action' : 'contenu';\n  const [titre, corps] = decouper(s.texte);\n  const kicker = i === slides.length - 1 ? 'À toi de jouer' : s.role;\n  return `<section class=\"slide ${classe}${corps ? '' : ' seul'}${titre ? '' : ' liste'}\">${profil(n)}\n  <div class=\"centre\"><div class=\"badge\">${s.emoji}</div><div class=\"kicker\">${echap(kicker)}</div>\n  ${titre ? `<h2>${surligner(titre, s.accent)}</h2>` : ''}\n  ${corps ? `<div class=\"corps\">${enLignes(surligner(corps, titre.toLowerCase().includes((s.accent || '').toLowerCase()) ? '' : s.accent))}</div>` : ''}</div>\n  ${i < slides.length - 1 ? '<div class=\"suite\">Swipe →</div>' : ''}${progres(n)}</section>`;\n}\nconst slideAbonne = () => `<section class=\"slide abonne\">\n  <div class=\"grand-avatar\">${initiales}</div><div class=\"pre\">Tu as appris un truc ?</div><h2>Abonne-toi</h2>\n  <div class=\"sig\">${echap(SIGNATURE)}</div><div class=\"bouton\">+ S'abonner</div>\n  ${COMPTE ? `<div class=\"compte-final\">${echap(COMPTE)}</div>` : ''}\n  <div class=\"gestes\"><span>🔖 Enregistre</span><span>📩 Partage</span><span>💬 Commente</span></div></section>`;\n\nconst page = (corps) => `<!doctype html><html lang=\"fr\"><head><meta charset=\"utf-8\"><style>${CSS}</style></head><body>${corps}</body></html>`;\nconst fichier = (html) => ({ data: Buffer.from(html, 'utf8').toString('base64'), mimeType: 'text/html', fileName: 'index.html' });\n\nconst base = (res.titre || 'carrousel').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);\nconst pages = [...slides.map(slideHtml), slideAbonne()];\nconst sorties = pages.map((html, i) => ({\n  json: { tache_id: tacheId, route: 'screenshot/html', nom: `${base}-slide-${i + 1}.png`, template },\n  binary: { index: fichier(page(html)) },\n}));\nsorties.push({\n  json: { tache_id: tacheId, route: 'convert/html', nom: `${base}-carrousel-canva.pdf`, template },\n  binary: { index: fichier(page(pages.join(''))) },\n});\nreturn sorties;\n"
+      }
+    },
+    {
+      "id": "ejp-11",
+      "name": "9. Generer les images",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2420,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://gotenberg:3000/forms/chromium/' + $json.route }}",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "files",
+              "inputDataFieldName": "index"
+            },
+            {
+              "name": "width",
+              "value": "1080"
+            },
+            {
+              "name": "height",
+              "value": "1350"
+            },
+            {
+              "name": "format",
+              "value": "png"
+            },
+            {
+              "name": "skipNetworkIdleEvent",
+              "value": "false"
+            },
+            {
+              "name": "preferCssPageSize",
+              "value": "true"
+            },
+            {
+              "name": "printBackground",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "fichier"
+            }
+          },
+          "timeout": 120000
+        }
+      }
+    },
+    {
+      "id": "ejp-12",
+      "name": "10. Nommer les fichiers",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Donne à chaque image son nom (slide-1.png, …, carrousel-canva.pdf) et garde l'id de la tâche ClickUp.\nreturn $input.all().map((item, i) => {\n  const infos = $('8. Preparer les slides').all()[i].json;\n  item.binary.fichier.fileName = infos.nom;\n  item.binary.fichier.mimeType = infos.nom.endsWith('.pdf') ? 'application/pdf' : 'image/png';\n  item.json = infos;\n  return item;\n});\n"
+      }
+    },
+    {
+      "id": "ejp-13",
+      "name": "11. Joindre a la tache ClickUp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2860,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.clickup.com/api/v2/task/{{ $json.tache_id }}/attachment",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "clickUpApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "attachment",
+              "inputDataFieldName": "fichier"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
       }
     }
   ],
@@ -246,6 +420,17 @@
       ]
     },
     "2. Lire la veille": {
+      "main": [
+        [
+          {
+            "node": "2b. Lire les decryptages ClickUp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2b. Lire les decryptages ClickUp": {
       "main": [
         [
           {
@@ -294,6 +479,61 @@
         [
           {
             "node": "7. Resultat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "7. Resultat": {
+      "main": [
+        [
+          {
+            "node": "ClickUp - creer la tache",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ClickUp - creer la tache": {
+      "main": [
+        [
+          {
+            "node": "8. Preparer les slides",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "8. Preparer les slides": {
+      "main": [
+        [
+          {
+            "node": "9. Generer les images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "9. Generer les images": {
+      "main": [
+        [
+          {
+            "node": "10. Nommer les fichiers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Nommer les fichiers": {
+      "main": [
+        [
+          {
+            "node": "11. Joindre a la tache ClickUp",
             "type": "main",
             "index": 0
           }

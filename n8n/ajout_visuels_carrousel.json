@@ -1,12 +1,12 @@
 {
   "nodes": [
     {
-      "id": "ejp-v8",
+      "id": "ejp-10",
       "name": "8. Preparer les slides",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1980,
+        2200,
         300
       ],
       "parameters": {
@@ -14,12 +14,12 @@
       }
     },
     {
-      "id": "ejp-v9",
+      "id": "ejp-11",
       "name": "9. Generer les images",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2200,
+        2420,
         300
       ],
       "parameters": {
@@ -72,12 +72,12 @@
       }
     },
     {
-      "id": "ejp-v10",
+      "id": "ejp-12",
       "name": "10. Nommer les fichiers",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2420,
+        2640,
         300
       ],
       "parameters": {
@@ -85,12 +85,12 @@
       }
     },
     {
-      "id": "ejp-v11",
+      "id": "ejp-13",
       "name": "11. Joindre a la tache ClickUp",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2640,
+        2860,
         300
       ],
       "parameters": {

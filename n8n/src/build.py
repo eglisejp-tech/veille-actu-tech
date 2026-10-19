@@ -43,11 +43,19 @@ nodes = [
             champ(3, "consigne", ""),
             champ(4, "jours", 3, "number"),
             champ(5, "veille_json_url", VEILLE_URL),
+            champ(6, "clickup_list_id", ""),
+            champ(7, "clickup_statut", ""),
         ]},
         "options": {},
     }),
     node("2. Lire la veille", "n8n-nodes-base.httpRequest", 4.2, 440, {
         "url": "={{ $json.veille_json_url }}",
+        "options": {"response": {"response": {"neverError": True, "responseFormat": "json"}}, "timeout": 30000},
+    }, onError="continueRegularOutput", alwaysOutputData=True),
+    node("2b. Lire les decryptages ClickUp", "n8n-nodes-base.httpRequest", 4.2, 550, {
+        "url": "=https://api.clickup.com/api/v2/list/{{ $('1. Choisir l article').first().json.clickup_list_id }}/task?include_closed=true&subtasks=false&order_by=created",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "clickUpApi",
         "options": {"response": {"response": {"neverError": True, "responseFormat": "json"}}, "timeout": 30000},
     }, onError="continueRegularOutput", alwaysOutputData=True),
     node("3. Selectionner l article", "n8n-nodes-base.code", 2, 660, {"jsCode": code["3_selectionner"]}),
@@ -75,21 +83,6 @@ nodes = [
     }),
     node("7. Resultat", "n8n-nodes-base.code", 2, 1540, {"jsCode": code["7_resultat"]}),
 ]
-
-order = [n["name"] for n in nodes if n["id"] != "ejp-auto"]
-connections = {a: {"main": [[{"node": b, "type": "main", "index": 0}]]} for a, b in zip(order, order[1:])}
-connections["Tous les 2 jours a 10h"] = {"main": [[{"node": "1. Choisir l article", "type": "main", "index": 0}]]}
-
-workflow = {
-    "id": "ejpTechDecrypte1",
-    "name": "EJP Tech Décrypte - article vers carrousel et script",
-    "nodes": nodes,
-    "connections": connections,
-    "settings": {"executionOrder": "v1", "timezone": "Europe/Paris"},
-    "pinData": {},
-}
-OUT.write_text(json.dumps(workflow, ensure_ascii=False, indent=2), encoding="utf-8")
-print(f"Écrit : {OUT}")
 
 # Code complet du nœud 5 (prompt inclus), pour une mise à jour par copier-coller sans réimporter le workflow.
 (SRC.parent / "code_noeud_5.js").write_text(code["5_preparer"], encoding="utf-8")
@@ -128,6 +121,40 @@ visuels = [
         "options": {"timeout": 60000},
     }), "id": "ejp-v11"},
 ]
+
+# Création de la tâche ClickUp (API ClickUp, liste choisie dans le nœud 1).
+creer_tache = node("ClickUp - creer la tache", "n8n-nodes-base.httpRequest", 4.2, 0, {
+    "method": "POST",
+    "url": "=https://api.clickup.com/api/v2/list/{{ $('1. Choisir l article').first().json.clickup_list_id }}/task",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "clickUpApi",
+    "sendBody": True,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify(Object.assign({ name: '🔎 Décrypte : ' + $json.titre, description: $json.decryptage, markdown_content: $json.decryptage }, $('1. Choisir l article').first().json.clickup_statut ? { status: $('1. Choisir l article').first().json.clickup_statut } : {})) }}",
+    "options": {"timeout": 60000},
+})
+
+chaine = [n for n in nodes if n["name"] != "Tous les 2 jours a 10h"] + [creer_tache] + visuels
+for i, n in enumerate(chaine):
+    n["id"], n["position"] = f"ejp-{i}", [i * 220, 300]
+auto = next(n for n in nodes if n["name"] == "Tous les 2 jours a 10h")
+auto["id"], auto["position"] = "ejp-auto", [0, 520]
+
+order = [n["name"] for n in chaine]
+connections = {a: {"main": [[{"node": b, "type": "main", "index": 0}]]} for a, b in zip(order, order[1:])}
+connections["Tous les 2 jours a 10h"] = {"main": [[{"node": "1. Choisir l article", "type": "main", "index": 0}]]}
+
+workflow = {
+    "id": "ejpTechDecrypte1",
+    "name": "EJP Tech Décrypte - article vers carrousel et script",
+    "nodes": [auto] + chaine,
+    "connections": connections,
+    "settings": {"executionOrder": "v1", "timezone": "Europe/Paris"},
+    "pinData": {},
+}
+OUT.write_text(json.dumps(workflow, ensure_ascii=False, indent=2), encoding="utf-8")
+print(f"Écrit : {OUT}")
+
 noms = [n["name"] for n in visuels]
 liens = {a: {"main": [[{"node": b, "type": "main", "index": 0}]]} for a, b in zip(noms, noms[1:])}
 SNIPPET = SRC.parent / "ajout_visuels_carrousel.json"

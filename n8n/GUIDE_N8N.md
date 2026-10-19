@@ -106,39 +106,25 @@ publiés par semaine, tous les 2 jours laisse déjà le choix sans saturer la li
 | Dans ClickUp, on voit des `##`, des `**` ou des `|` | Option *Markdown Content* non activée dans le nœud ClickUp | **Add Field > Markdown Content** : activé |
 | Tâche ClickUp avec un titre mais sans description | Champ *Content* absent, ou pas en mode Expression | Dans le nœud ClickUp : **Add Field > Content**, bascule sur **Expression**, colle `{{ $json.decryptage }}` |
 
-## 7. Envoyer le résultat dans ClickUp (15 min, une seule fois)
+## 7. ClickUp (intégré au workflow, 5 min une seule fois)
 
-Le décryptage arrive directement comme une tâche ClickUp, assignée et notifiée sur le téléphone de l'équipe via l'app ClickUp.
+Le workflow contient déjà les nœuds ClickUp : il **lit** les tâches existantes (pour ne pas refaire un article ou un sujet déjà
+traité, même pendant les tests manuels), **crée** la tâche du décryptage et y **joint** les visuels.
 
-**a. Clé ClickUp**
-Dans ClickUp : ton avatar > **Settings** > **Apps** > **API Token** > *Generate*. Copie la clé, qui commence par `pk_`.
-C'est une clé personnelle : les tâches seront créées en ton nom.
+**a. Clé ClickUp** : dans ClickUp, ton avatar > **Settings** > **Apps** > **API Token** > *Generate* (la clé commence par `pk_`).
 
-**b. Ajouter le nœud**
-1. Survole le nœud **7. Resultat**, clique sur le **+** à sa droite, cherche **ClickUp**, puis choisis **Create a task**.
-2. *Credential* > **Create new credential** > *ClickUp API* > colle la clé `pk_…` > **Save**.
-3. Choisis dans les listes déroulantes **Team** (ton espace), **Space**, **Folder** (« ACTU TECH »), **List** (« VEILLE & SOURCING » ou ta liste de décryptages).
-4. **Name** : clique sur le champ, passe en mode **Expression**, puis colle :
-   `🔎 Décrypte : {{ $json.titre }}`
-5. **Add Field** > **Content**, en mode Expression :
-   `{{ $json.decryptage }}`
-   Puis **Add Field** > **Markdown Content** et active-le. Sans cette option, ClickUp affiche les `##` et les `**` tels quels
-   au lieu des titres et du gras.
-6. Facultatif, toujours via **Add Field** :
-   - **Status** : le statut de ta liste qui veut dire « à valider » (par exemple `TO REVIEW`, en respectant les majuscules) ;
-   - **Assignees** : la personne qui valide ;
-   - **Due Date**.
-7. Renomme le nœud `8. ClickUp - creer la tache`, puis **Save** et **Execute workflow**.
+**b. Identifiant de la liste** : ouvre ta liste (par exemple « VEILLE & SOURCING ») dans ClickUp, dans un navigateur.
+L'adresse ressemble à `https://app.clickup.com/9012345678/v/li/901234567890` : l'identifiant est le nombre après `/li/`.
+Colle-le dans le nœud **1. Choisir l'article**, champ `clickup_list_id`.
 
-Le lien de l'article (`{{ $json.lien_source }}`) se trouve déjà en tête du texte. Pour remplir aussi le champ personnalisé
-« Source URL », il faut son identifiant : **Add Field** > **Custom Fields**. C'est à faire dans un second temps.
+**c. Statut (facultatif)** : dans le même nœud, champ `clickup_statut`, mets le nom exact d'un statut de ta liste, par exemple
+`in review`. Laisse vide pour le statut par défaut.
 
-**Et WhatsApp ?** C'est possible, mais lourd : il faut un compte Meta Business, un numéro dédié vérifié, et des modèles de
-messages validés par Meta. Le plus simple, dans l'ordre :
-1. Les **notifications de l'app ClickUp** (déjà sur vos téléphones) : rien à ajouter, il suffit d'assigner la tâche.
-2. **Telegram** : nœud *Telegram > Send Message*, avec un bot créé en 2 minutes via @BotFather, gratuit et sans validation.
-   Message conseillé : titre + lien de la tâche ClickUp, pas le décryptage complet.
-3. **WhatsApp** : nœud *WhatsApp Business Cloud*, seulement si l'équipe y tient vraiment.
+**d. Credential** : dans les 3 nœuds ClickUp (**2b. Lire les decryptages ClickUp**, **ClickUp - creer la tache**,
+**11. Joindre a la tache ClickUp**), *Credential for ClickUp API* > ta credential (ou *Create new* avec la clé `pk_…`).
+
+**Et WhatsApp ?** C'est possible, mais lourd (compte Meta Business, numéro vérifié, modèles validés). Le plus simple : les
+notifications de l'app ClickUp (assigne la tâche), ou un bot **Telegram** (nœud *Telegram > Send Message*, gratuit).
 
 ## 7 bis. Générer les visuels du carrousel (gratuit, 10 min une seule fois)
 
@@ -153,17 +139,7 @@ scp ~/Documents/perso/eglise/ejp-tech/veille-actu-tech/n8n/vps/docker-compose.ym
 ssh root@213.136.88.29 "cd /opt/n8n && docker compose up -d"
 ```
 
-**b. Coller les 4 nouveaux nœuds dans n8n.** Sur ton Mac :
-```bash
-pbcopy < ~/Documents/perso/eglise/ejp-tech/veille-actu-tech/n8n/ajout_visuels_carrousel.json
-```
-Ouvre le workflow, clique sur une zone vide du canevas, puis **Cmd + V**. Les nœuds 8 à 11 apparaissent.
-Relie ton nœud **ClickUp** au nœud **8. Preparer les slides** (glisse le petit rond de droite du nœud ClickUp).
-
-**c. Credential ClickUp du nœud 11** : double-clique sur **11. Joindre a la tache ClickUp**, puis *Credential for ClickUp API*
-> ta credential ClickUp existante.
-
-**d.** **Save**, **Execute workflow**, vérifie la tâche ClickUp (7 PNG + 1 PDF en pièces jointes), puis **Publish**.
+**b.** Les nœuds 8 à 11 sont déjà dans le workflow, branchés après la création de la tâche ClickUp. Rien à coller.
 
 **Modifier le visuel dans Canva** (compte gratuit) : télécharge le PDF depuis ClickUp, puis dans Canva,
 **Créer un design > Importer un fichier** > le PDF. Chaque slide devient une page modifiable (textes, couleurs, images).

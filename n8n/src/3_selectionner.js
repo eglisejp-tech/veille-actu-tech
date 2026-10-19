@@ -2,14 +2,34 @@
 // - Lien d'article collé dans « 1. Choisir l'article » : on le cherche dans la veille.
 // - Vide (ou adresse de la veille) : choix automatique selon les attentes du public (rapport du stand).
 const choix = $('1. Choisir l article').first().json;
-const veille = $input.first().json || {};
+const veille = $('2. Lire la veille').first().json || {};
 const articles = Array.isArray(veille.articles) ? veille.articles : [];
+const normaliser = (u) => (u || '').trim().replace(/[?#].*$/, '').replace(/\/+$/, '').toLowerCase();
 
-// Articles déjà décryptés par les lancements automatiques (mémoire du workflow, voir « 7. Resultat »).
+// ---- Mémoire : ce qui a déjà été décrypté ----
+// 1) Les tâches de la liste ClickUp (nœud « 2b ») : chaque description commence par le lien de l'article.
+//    Marche aussi pendant les tests manuels, et une tâche rejetée compte aussi.
+// 2) En secours, la mémoire interne de n8n (remplie seulement par les lancements automatiques).
+const taches = (($input.first().json || {}).tasks) || [];
 const memoire = $getWorkflowStaticData('global');
 const dejaFaits = new Set(memoire.deja_decryptes || []);
+for (const t of taches) {
+  for (const u of `${t.description || ''} ${t.text_content || ''}`.match(/https?:\/\/[^\s)\]"'>]+/g) || []) dejaFaits.add(normaliser(u));
+}
 
-const normaliser = (u) => (u || '').trim().replace(/[?#].*$/, '').replace(/\/+$/, '').toLowerCase();
+// ---- Même sujet ? (évite 4 décryptages d'affilée sur « les pubs ChatGPT ») ----
+const VIDES = new Set(['dans', 'pour', 'avec', 'sans', 'plus', 'moins', 'leur', 'leurs', 'cette', 'votre', 'notre', 'sont', 'être', 'peut', 'fait', 'comme', 'mais', 'tout', 'tous', 'quand', 'from', 'with', 'that', 'this', 'your', 'have', 'will', 'what', 'utilise', 'désormais', 'nouvelle', 'nouveau']);
+const racines = (titre) => new Set((titre || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .split(/[^a-z0-9]+/).filter((m) => m.length >= 4 && !VIDES.has(m)).map((m) => m.slice(0, 5)));
+const sujetsFaits = articles.filter((a) => dejaFaits.has(normaliser(a.lien))).map((a) => racines(a.titre));
+for (const t of taches) sujetsFaits.push(racines((t.name || '').replace(/^.*?D[ée]crypte\s*:\s*/i, '')));
+function memeSujet(a) {
+  const r = racines(a.titre);
+  return sujetsFaits.some((f) => {
+    const communs = [...r].filter((x) => f.has(x)).length;
+    return communs >= 3 || (communs >= 2 && communs / Math.min(r.size, f.size || 1) >= 0.5);
+  });
+}
 const lienBrut = normaliser(choix.lien_article);
 const lien = /ejp-tech-actu$|veille-actu-tech$/.test(lienBrut) ? '' : lienBrut;
 
@@ -38,6 +58,9 @@ function evaluer(a) {
   score -= 3 * MALUS.filter((m) => texte.includes(m)).length;
   if (a.langue === 'fr') score += 2; // exemples et contexte plus proches du public
   if (a.pertinence === 'Basse') score -= 4;
+  // Fraîcheur : un article du jour passe devant un article d'il y a 3 jours à intérêt égal.
+  const age = Math.round((Date.parse(new Date().toISOString().slice(0, 10)) - Date.parse(a.date)) / 86400000);
+  score += age <= 0 ? 4 : age === 1 ? 2 : 0;
   return { score, raisons };
 }
 
@@ -56,7 +79,7 @@ if (lien) {
 const jours = Number(choix.jours) || 3;
 const depuis = new Date(Date.now() - jours * 86400000).toISOString().slice(0, 10);
 const candidats = articles
-  .filter((a) => a.date >= depuis && !dejaFaits.has(normaliser(a.lien)))
+  .filter((a) => a.date >= depuis && !dejaFaits.has(normaliser(a.lien)) && !memeSujet(a))
   .map((a) => ({ ...a, ...evaluer(a) }))
   .sort((x, y) => y.score - x.score)
   .slice(0, 5);
@@ -75,6 +98,7 @@ return [{
     article,
     mode_selection: mode,
     raison_choix: raisons.join(' · '),
+    memoire: `${taches.length} tâche(s) ClickUp lues, ${dejaFaits.size} article(s) déjà traités exclus`,
     autres_candidats: candidats.map((c) => `${c.score} pts | ${c.date} | ${c.source} | ${c.titre} | ${c.lien}`),
     format: choix.format,
     consigne: choix.consigne || '',
