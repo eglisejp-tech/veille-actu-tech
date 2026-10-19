@@ -53,7 +53,7 @@ nodes = [
         "options": {"response": {"response": {"neverError": True, "responseFormat": "json"}}, "timeout": 30000},
     }, onError="continueRegularOutput", alwaysOutputData=True),
     node("2b. Lire les decryptages ClickUp", "n8n-nodes-base.httpRequest", 4.2, 550, {
-        "url": "=https://api.clickup.com/api/v2/list/{{ String($('1. Choisir l article').first().json.clickup_list_id).match(/\d{6,}/)?.[0] }}/task?include_closed=true&subtasks=false&order_by=created",
+        "url": "=https://api.clickup.com/api/v2/list/{{ String($('1. Choisir l article').first().json.clickup_list_id).match(/\\d{6,}/)?.[0] }}/task?include_closed=true&subtasks=false&order_by=created",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "clickUpApi",
         "options": {"response": {"response": {"neverError": True, "responseFormat": "json"}}, "timeout": 30000},
@@ -125,7 +125,7 @@ visuels = [
 # Création de la tâche ClickUp (API ClickUp, liste choisie dans le nœud 1).
 creer_tache = node("ClickUp - creer la tache", "n8n-nodes-base.httpRequest", 4.2, 0, {
     "method": "POST",
-    "url": "=https://api.clickup.com/api/v2/list/{{ String($('1. Choisir l article').first().json.clickup_list_id).match(/\d{6,}/)?.[0] }}/task",
+    "url": "=https://api.clickup.com/api/v2/list/{{ String($('1. Choisir l article').first().json.clickup_list_id).match(/\\d{6,}/)?.[0] }}/task",
     "authentication": "predefinedCredentialType",
     "nodeCredentialType": "clickUpApi",
     "sendBody": True,
