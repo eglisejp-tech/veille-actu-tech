@@ -114,8 +114,8 @@ traité, même pendant les tests manuels), **crée** la tâche du décryptage et
 **a. Clé ClickUp** : dans ClickUp, ton avatar > **Settings** > **Apps** > **API Token** > *Generate* (la clé commence par `pk_`).
 
 **b. Identifiant de la liste** : ouvre ta liste (par exemple « VEILLE & SOURCING ») dans ClickUp, dans un navigateur.
-L'adresse ressemble à `https://app.clickup.com/9012345678/v/li/901234567890` : l'identifiant est le nombre après `/li/`.
-Colle-le dans le nœud **1. Choisir l'article**, champ `clickup_list_id`.
+L'adresse ressemble à `…/v/li/901234567890` ou `…/v/l/6-901234567890-1` : l'identifiant de la liste est le **long nombre
+de 12 chiffres** (`901234567890`), sans le `6-` ni le `-1`. Colle-le dans le nœud **1. Choisir l'article**, champ `clickup_list_id`.
 
 **c. Statut (facultatif)** : dans le même nœud, champ `clickup_statut`, mets le nom exact d'un statut de ta liste, par exemple
 `in review`. Laisse vide pour le statut par défaut.

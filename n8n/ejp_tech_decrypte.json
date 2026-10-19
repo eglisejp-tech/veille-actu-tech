@@ -129,7 +129,7 @@
         300
       ],
       "parameters": {
-        "url": "=https://api.clickup.com/api/v2/list/{{ $('1. Choisir l article').first().json.clickup_list_id }}/task?include_closed=true&subtasks=false&order_by=created",
+        "url": "=https://api.clickup.com/api/v2/list/{{ String($('1. Choisir l article').first().json.clickup_list_id).match(/\\d{6,}/)?.[0] }}/task?include_closed=true&subtasks=false&order_by=created",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "clickUpApi",
         "options": {
@@ -270,7 +270,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "=https://api.clickup.com/api/v2/list/{{ $('1. Choisir l article').first().json.clickup_list_id }}/task",
+        "url": "=https://api.clickup.com/api/v2/list/{{ String($('1. Choisir l article').first().json.clickup_list_id).match(/\\d{6,}/)?.[0] }}/task",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "clickUpApi",
         "sendBody": true,
