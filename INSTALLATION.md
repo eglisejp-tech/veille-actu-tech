@@ -42,7 +42,7 @@ veille-actu-tech/
 
 ## Fonctionnement quotidien
 
-Chaque jour à 08h (Paris), GitHub lance le script. Il interroge les 30 sources
+Chaque nuit vers 4 h (Paris), GitHub lance le script. Il interroge les 30 sources
 en parallèle (quelques secondes), ne garde que les articles des 7 derniers jours,
 élimine les doublons (liens nettoyés de leurs paramètres de tracking, titres identiques
 entre sources), écarte le bruit (articles sponsorisés, bons plans, promos, webinaires, livres blancs,

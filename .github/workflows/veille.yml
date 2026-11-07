@@ -2,7 +2,8 @@ name: Veille quotidienne
 
 on:
   schedule:
-    - cron: "0 6 * * *"
+    # 3 h 17 UTC : GitHub décale souvent les tâches planifiées de plusieurs heures, surtout à l'heure pile.
+    - cron: "17 3 * * *"
   workflow_dispatch:
 
 permissions:
